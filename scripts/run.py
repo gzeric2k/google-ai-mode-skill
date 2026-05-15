@@ -16,31 +16,38 @@ def get_venv_python():
     venv_dir = skill_dir / ".venv"
 
     if os.name == 'nt':  # Windows
-        venv_python = venv_dir / "Scripts" / "python.exe"
-    else:  # Unix/Linux/Mac
-        venv_python = venv_dir / "bin" / "python"
+        # Some tools (uv, Git Bash, Cygwin) create bin/ on Windows instead of Scripts/
+        scripts_python = venv_dir / "Scripts" / "python.exe"
+        if scripts_python.exists():
+            return scripts_python
+        bin_python = venv_dir / "bin" / "python"
+        if bin_python.exists():
+            return bin_python
+        return scripts_python  # Return canonical path even if missing (triggers setup)
 
-    return venv_python
+    return venv_dir / "bin" / "python"
 
 
 def ensure_venv():
-    """Ensure virtual environment exists"""
+    """Ensure virtual environment exists and Python binary is present"""
     skill_dir = Path(__file__).parent.parent
     venv_dir = skill_dir / ".venv"
     setup_script = skill_dir / "scripts" / "setup_environment.py"
 
-    # Check if venv exists
-    if not venv_dir.exists():
-        print("🔧 First-time setup: Creating virtual environment...")
+    venv_python = get_venv_python()
+    needs_setup = not venv_dir.exists() or not venv_python.exists()
+
+    if needs_setup:
+        print("First-time setup: Creating virtual environment...")
         print("   This may take a minute...")
 
         # Run setup with system Python
         result = subprocess.run([sys.executable, str(setup_script)])
         if result.returncode != 0:
-            print("❌ Failed to set up environment")
+            print("Failed to set up environment")
             sys.exit(1)
 
-        print("✅ Environment ready!")
+        print("Environment ready!")
 
     return get_venv_python()
 
@@ -50,9 +57,12 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python run.py <script_name> [args...]")
         print("\nAvailable scripts:")
-        print("  search.py - Query Google AI Mode for web research")
-        print("\nExample:")
+        print("  search.py  - Query Google AI Mode for web research")
+        print("  analyze.py - Extract and analyze documents from URL or local file")
+        print("\nExamples:")
         print('  python run.py search.py --query "React hooks 2026" --save --debug')
+        print('  python run.py analyze.py --url "https://example.com/doc.pdf" --save')
+        print('  python run.py analyze.py --file report.pdf --question "Key financials?"')
         sys.exit(1)
 
     script_name = sys.argv[1]
@@ -72,7 +82,7 @@ def main():
     script_path = skill_dir / "scripts" / script_name
 
     if not script_path.exists():
-        print(f"❌ Script not found: {script_name}")
+        print(f"Script not found: {script_name}")
         print(f"   Working directory: {Path.cwd()}")
         print(f"   Skill directory: {skill_dir}")
         print(f"   Looked for: {script_path}")
@@ -89,10 +99,22 @@ def main():
         result = subprocess.run(cmd)
         sys.exit(result.returncode)
     except KeyboardInterrupt:
-        print("\n⚠️ Interrupted by user")
+        print("\nInterrupted by user")
         sys.exit(130)
+    except OSError as e:
+        if e.errno in (2, 8, 193):  # Not found, Exec format, Not valid Win32 app
+            # venv python is a non-Windows binary (e.g. created in WSL/Cygwin)
+            # Fall back to system Python
+            print(f"  Note: venv Python not usable on this platform, using system Python")
+            scripts_dir = script_path.parent
+            fallback_cmd = [sys.executable, str(script_path)] + script_args
+            env = dict(os.environ, PYTHONPATH=str(scripts_dir))
+            result = subprocess.run(fallback_cmd, env=env)
+            sys.exit(result.returncode)
+        print(f"Error: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         sys.exit(1)
 
 

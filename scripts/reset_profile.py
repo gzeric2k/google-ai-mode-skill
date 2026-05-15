@@ -34,7 +34,7 @@ def main():
         print()
 
         response = input("Continue? (y/N): ").strip().lower()
-        if response != 'y':
+        if response != "y":
             print("❌ Cancelled.")
             return 1
 
@@ -44,11 +44,9 @@ def main():
         print(f"✅ Profile deleted!")
         print()
         print(f"📝 Next steps:")
-        print(f"   1. Run a search with --show-browser:")
-        print(f"      python scripts/run.py search.py --query 'test' --show-browser")
-        print(f"   2. Verify Google shows ENGLISH interface")
-        print(f"   3. If CAPTCHA appears, solve it once")
-        print(f"   4. Profile will be recreated with English settings")
+        print(f"   1. Run a search:")
+        print(f"      python scripts/run.py search.py --query 'test' --save --debug")
+        print(f"   2. Profile will be recreated with English settings")
         print()
         return 0
     else:

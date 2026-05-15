@@ -8,14 +8,22 @@ import random
 from typing import Optional
 
 from patchright.sync_api import Playwright, Browser, BrowserContext, Page
-from config import BROWSER_ARGS, USER_AGENT, BROWSER_PROFILE_DIR, LOCALE, EXTRA_HTTP_HEADERS
+from config import (
+    BROWSER_ARGS,
+    USER_AGENT,
+    BROWSER_PROFILE_DIR,
+    LOCALE,
+    EXTRA_HTTP_HEADERS,
+)
 
 
 class BrowserFactory:
     """Factory for creating configured browser instances"""
 
     @staticmethod
-    def launch_persistent_context(playwright: Playwright, headless: bool = True) -> BrowserContext:
+    def launch_persistent_context(
+        playwright: Playwright, headless: bool = True
+    ) -> BrowserContext:
         """
         Launch browser with PERSISTENT CONTEXT - keeps cookies/session!
         This dramatically reduces CAPTCHA occurrences.
@@ -29,20 +37,22 @@ class BrowserFactory:
         local_state = {}
         if local_state_file.exists():
             try:
-                with open(local_state_file, 'r', encoding='utf-8') as f:
+                with open(local_state_file, "r", encoding="utf-8") as f:
                     local_state = json.load(f)
             except:
                 local_state = {}
 
         # Force English in Local State
-        local_state.update({
-            "intl": {
-                "app_locale": "en",  # CRITICAL: Chrome UI language
-                "accept_languages": "en-US,en"
+        local_state.update(
+            {
+                "intl": {
+                    "app_locale": "en",  # CRITICAL: Chrome UI language
+                    "accept_languages": "en-US,en",
+                }
             }
-        })
+        )
 
-        with open(local_state_file, 'w', encoding='utf-8') as f:
+        with open(local_state_file, "w", encoding="utf-8") as f:
             json.dump(local_state, f, indent=2)
 
         # Step 2: Set Default/Preferences (per-profile settings)
@@ -54,36 +64,34 @@ class BrowserFactory:
         if prefs_file.exists():
             # Load existing preferences to preserve cookies/session
             try:
-                with open(prefs_file, 'r', encoding='utf-8') as f:
+                with open(prefs_file, "r", encoding="utf-8") as f:
                     prefs = json.load(f)
             except:
                 prefs = {}
 
         # FORCE English language settings
-        prefs.update({
-            "intl": {
-                "accept_languages": "en-US,en",
-                "selected_languages": "en-US,en",
-                "app_locale": "en"  # Redundant but ensures consistency
-            },
-            "translate": {
-                "enabled": False  # Disable auto-translate
-            },
-            "webkit": {
-                "webprefs": {
-                    "default_charset": "utf-8"
-                }
+        prefs.update(
+            {
+                "intl": {
+                    "accept_languages": "en-US,en",
+                    "selected_languages": "en-US,en",
+                    "app_locale": "en",  # Redundant but ensures consistency
+                },
+                "translate": {
+                    "enabled": False  # Disable auto-translate
+                },
+                "webkit": {"webprefs": {"default_charset": "utf-8"}},
             }
-        })
+        )
 
         # Write preferences atomically
-        with open(prefs_file, 'w', encoding='utf-8') as f:
+        with open(prefs_file, "w", encoding="utf-8") as f:
             json.dump(prefs, f, indent=2)
 
         # NOW launch browser (will read our forced preferences)
         return playwright.chromium.launch_persistent_context(
             str(BROWSER_PROFILE_DIR),  # Persistent profile directory
-            channel="chrome",  # Use real Chrome for better anti-detection
+            channel="chromium",  # Use Chromium for browser automation
             headless=headless,
             user_agent=USER_AGENT,
             locale=LOCALE,  # Force English locale
@@ -99,9 +107,9 @@ class BrowserFactory:
         DEPRECATED: Use launch_persistent_context instead to avoid CAPTCHAs!
         """
         return playwright.chromium.launch(
-            channel="chrome",  # Use real Chrome for better anti-detection
+            channel="chromium",  # Use Chromium for browser automation
             headless=headless,
-            args=BROWSER_ARGS
+            args=BROWSER_ARGS,
         )
 
 
@@ -114,7 +122,9 @@ class StealthUtils:
         time.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
 
     @staticmethod
-    def human_type(page: Page, selector: str, text: str, wpm_min: int = 320, wpm_max: int = 480):
+    def human_type(
+        page: Page, selector: str, text: str, wpm_min: int = 320, wpm_max: int = 480
+    ):
         """Type with human-like speed"""
         element = page.query_selector(selector)
         if not element:
@@ -147,8 +157,8 @@ class StealthUtils:
         # Optional: Move mouse to element (simplified)
         box = element.bounding_box()
         if box:
-            x = box['x'] + box['width'] / 2
-            y = box['y'] + box['height'] / 2
+            x = box["x"] + box["width"] / 2
+            y = box["y"] + box["height"] / 2
             page.mouse.move(x, y, steps=5)
 
         StealthUtils.random_delay(100, 300)
