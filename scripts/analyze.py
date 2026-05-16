@@ -30,6 +30,7 @@ from logger import get_logger
 # FILE TYPE DETECTION
 # =============================================================================
 
+
 def detect_type(source: str, content_type: str = "") -> str:
     lower = source.lower()
     ct_lower = content_type.lower()
@@ -50,6 +51,7 @@ def detect_type(source: str, content_type: str = "") -> str:
 # DOWNLOAD
 # =============================================================================
 
+
 def download_url(url: str, logger) -> Tuple[bytes, str]:
     """Download file from URL. Returns (content_bytes, content_type)."""
     logger.debug(f"Downloading: {url}")
@@ -67,7 +69,9 @@ def download_url(url: str, logger) -> Tuple[bytes, str]:
         with urllib.request.urlopen(req, timeout=60) as resp:
             content_type = resp.headers.get("Content-Type", "")
             data = resp.read()
-            logger.debug(f"Downloaded {len(data):,} bytes  Content-Type: {content_type}")
+            logger.debug(
+                f"Downloaded {len(data):,} bytes  Content-Type: {content_type}"
+            )
             return data, content_type
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"HTTP {e.code} downloading {url}: {e.reason}")
@@ -79,14 +83,14 @@ def download_url(url: str, logger) -> Tuple[bytes, str]:
 # TEXT EXTRACTION
 # =============================================================================
 
+
 def extract_pdf(content: bytes, logger) -> str:
     """Extract text from PDF bytes using pdfplumber."""
     try:
         import pdfplumber
     except ImportError:
         raise ImportError(
-            "pdfplumber not installed. "
-            "Delete .venv and re-run to trigger reinstall."
+            "pdfplumber not installed. Delete .venv and re-run to trigger reinstall."
         )
 
     parts = []
@@ -149,6 +153,7 @@ def extract_text(content: bytes, logger) -> str:
 # MAIN ANALYSIS FUNCTION
 # =============================================================================
 
+
 def analyze_document(
     source: str,
     is_url: bool,
@@ -188,7 +193,9 @@ def analyze_document(
     logger.info(f"Extracted {char_count:,} characters")
 
     # --- Build markdown output ---
-    source_label = source if is_url else Path(source).name  # URLs shown in full; local files show name only
+    source_label = (
+        source if is_url else Path(source).name
+    )  # URLs shown in full; local files show name only
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     header_lines = [
@@ -229,6 +236,7 @@ def analyze_document(
 # =============================================================================
 # CLI ENTRY POINT
 # =============================================================================
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -280,7 +288,9 @@ def main():
         if result["success"]:
             print("\nANALYSIS COMPLETE")
             print("-" * 60)
-            print(f"Extracted: {result['char_count']:,} characters ({result['file_type'].upper()})")
+            print(
+                f"Extracted: {result['char_count']:,} characters ({result['file_type'].upper()})"
+            )
 
             # Determine output path
             def _stem(src: str) -> str:
@@ -295,7 +305,7 @@ def main():
                 RESULTS_DIR.mkdir(exist_ok=True)
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 safe_name = re.sub(r"[^a-zA-Z0-9]", "_", _stem(source)[:40]).strip("_")
-                out_path = RESULTS_DIR / f"{timestamp}_analyze_{safe_name}.md"
+                out_path = RESULTS_DIR / f"RAW_{timestamp}_analyze_{safe_name}.md"
             else:
                 safe_name = re.sub(r"[^a-zA-Z0-9]", "_", _stem(source)[:40]).strip("_")
                 out_path = Path(f"analysis_{safe_name}.md")
@@ -307,7 +317,9 @@ def main():
             # Preview (encode-safe for Windows cp1252 consoles)
             print("\n--- PREVIEW (first 500 chars) ---")
             preview_text = result["text"][:500].replace("\n", " ")
-            safe_preview = preview_text.encode(sys.stdout.encoding or "utf-8", errors="replace").decode(sys.stdout.encoding or "utf-8")
+            safe_preview = preview_text.encode(
+                sys.stdout.encoding or "utf-8", errors="replace"
+            ).decode(sys.stdout.encoding or "utf-8")
             print(safe_preview + "...")
 
         else:
@@ -323,6 +335,7 @@ def main():
         print(f"\nUnexpected error: {e}")
         logger.exception("Unexpected error")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:

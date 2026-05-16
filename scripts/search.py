@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
 """
 -------------------------------------------------------------------------------
 Google AI Mode Search
@@ -911,7 +914,7 @@ def main():
                 RESULTS_DIR.mkdir(exist_ok=True)
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
                 safe_name = re.sub(r"[^a-zA-Z0-9]", "_", query[:40]).strip("_")
-                out_path = RESULTS_DIR / f"{timestamp}_{safe_name}.md"
+                out_path = RESULTS_DIR / f"GEMINI_{timestamp}_{safe_name}.md"
                 logger.debug(f"Saving to results folder: {out_path}")
             else:
                 # Current directory (default)
@@ -919,10 +922,19 @@ def main():
                 out_path = Path(f"result_{safe_name}.md")
                 logger.debug(f"Saving to current directory: {out_path}")
 
-            # Write Markdown
+            # Clean markdown: remove Google UI boilerplate after analysis
+            md = result["markdown"]
+            # Remove everything between "Copy" (followed by newline and # Share) and "---" (Sources divider)
+            md_clean = re.sub(
+                r"(?s)Copy\s*\n+#\s*Share\s+public\s+link.*?(?=\n---\n)", "", md
+            )
+            # Also remove trailing boilerplate after last source citation if no Sources section
+            md_clean = re.sub(r"(?s)(```\s*)?\nCopy\s*\n.*$", "", md_clean)
+            md_clean = md_clean.strip()
+
             logger.debug(f"Writing markdown to: {out_path}")
             with open(out_path, "w", encoding="utf-8") as f:
-                f.write(result["markdown"])
+                f.write(md_clean)
             print(f"Saved Markdown: {out_path}")
             logger.info(f"Markdown saved: {out_path}")
 
