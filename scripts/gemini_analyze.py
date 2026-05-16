@@ -498,6 +498,7 @@ class GeminiAnalyzer:
 def main():
     parser = argparse.ArgumentParser(description="Gemini PDF URL Analyzer")
     parser.add_argument("--url", type=str, help="URL of PDF/document to analyze")
+    parser.add_argument("--text-file", type=str, help="Path to pre-extracted text file (use instead of --url when Gemini cannot fetch the URL directly)")
     parser.add_argument(
         "--query",
         type=str,
@@ -516,27 +517,50 @@ def main():
     )
     args = parser.parse_args()
 
-    if not args.url:
-        print("Error: --url is required")
+    if not args.url and not args.text_file:
+        print("Error: --url or --text-file is required")
         sys.exit(1)
 
     logger = get_logger(debug=args.debug)
-    logger.info(f"Gemini Analyze — URL: {args.url}")
+
+    # Build query: if --text-file given, embed file contents directly in prompt
+    query = args.query
+    url_for_submit = args.url or ""
+    if args.text_file:
+        text_path = Path(args.text_file)
+        if not text_path.exists():
+            print(f"Error: text file not found: {args.text_file}")
+            sys.exit(1)
+        with open(text_path, "r", encoding="utf-8") as f:
+            file_text = f.read()
+        # Strip the metadata header if it's a RAW_ output from analyze.py
+        if "## Extracted Content" in file_text:
+            file_text = file_text.split("## Extracted Content")[1].strip()
+        # Truncate to avoid Gemini input limits (~30k chars safe)
+        if len(file_text) > 28000:
+            file_text = file_text[:28000] + "\n\n[...内容过长，已截断]"
+        query = f"{args.query}\n\n以下是文件内容：\n\n{file_text}"
+        url_for_submit = ""  # text already embedded, no URL needed
+        logger.info(f"Gemini Analyze — text-file: {args.text_file} ({len(file_text)} chars)")
+    else:
+        logger.info(f"Gemini Analyze — URL: {args.url}")
 
     analyzer = GeminiAnalyzer(headless=not args.headed, logger=logger)
 
     try:
         analyzer.start()
-        result = analyzer.submit_query(query=args.query, url=args.url)
+        result = analyzer.submit_query(query=query, url=url_for_submit)
 
         if result.startswith("ERROR:"):
             print(f"\nFAILED: {result}")
             sys.exit(1)
 
-        # Extract date from URL (HKEX pattern: .../sehk/YYYY/MMDD/...)
+        # Extract date from URL or text-file name (HKEX pattern: .../sehk/YYYY/MMDD/...)
         ann_date = ""
-        url = args.url
+        url = args.url or args.text_file or ""
         m = re.search(r"/sehk/(\d{4})/(\d{2})(\d{2})/", url)
+        if not m:
+            m = re.search(r"(\d{4})(\d{2})(\d{2})", url)
         if m:
             ann_date = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
 

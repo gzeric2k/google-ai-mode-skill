@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import sys
+sys.stdout.reconfigure(encoding="utf-8")
 """
 Document Analyzer for Google AI Mode Skill
 Downloads and extracts text from files (PDF, HTML, TXT) via URL or local path.
